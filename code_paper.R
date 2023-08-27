@@ -169,9 +169,6 @@ bc$Time<-as.numeric(bc$Time)
 bc$Survival<-as.numeric(bc$Survival)
 bc$Age<-as.numeric(bc$Age)
 bc$Sex<-as.factor(bc$Sex)
-
-
-#最后使用
 f1<- coxph(Surv(Time, Survival) ~ HGS+Age+Sex+Stage, data=bc)
 ggforest(f1,data = bc)
 ggsave("forest_G1.pdf",width = 7,height = 5,dpi=500)
