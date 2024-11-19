@@ -1,1 +1,108 @@
+library(limma)
+library(ggplot2) 
+library(ggVolcano)
+library(tidyverse)
+job <- "test" 
+
+#Import protein file A1.A6_proteins (both row names and column names are merged), and group file A1.A6_group$group (row names are not merged, column names are merged).
+proteins <- proteins[which(rowSums(proteins)!=0),] 
+proteins = log2(proteins) 
+proteins[proteins == -Inf] = 0 
+design <- model.matrix(~0+factor(group$group))
+colnames(design) <- levels(factor(group$group))
+rownames(design) <- colnames(proteins)
+contrast.matrix <- makeContrasts(Treat-Con,levels = design) 
+fit <- lmFit(proteins,design) 
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+DEG <- topTable(fit2, coef = 1,n = Inf,sort.by="logFC")
+DEG <- na.omit(DEG)
+colnames(DEG)
+DEG$regulate <- ifelse(DEG$P.Value > 0.05, "unchanged",
+                       ifelse(DEG$logFC > 1, "up-regulated",
+                              ifelse(DEG$logFC < -1, "down-regulated", "unchanged")))
+write.csv(DEG, file = "CSVFig2e.csv", row.names = TRUE)
+
+library(ggVolcano)
+
+#data <- add_regulate(A1.A6_results, log2FC_name = "logFC",
+#                     fdr_name = "adj.P.Val",log2FC = 1, fdr = 0.05)
+
+DEG$row = rownames(DEG)
+ggvolcano(DEG, x = "logFC", y = "adj.P.Val",
+          #custom_label = c("Q04447"),
+          pointSize = 2,
+          pointShape = 21,
+          fills = c("#EF767A", "#456990", "#48C0AA"),
+          colors = c("#EF767A", "#456990", "#48C0AA"),
+          add_label = F, label = "row", label_number = 2, output = FALSE) +
+    #ggtitle("Volcano Plot with Q04447 Highlighted") + 
+    theme(plot.title = element_text(hjust = 0.5)) 
+
+
+
+
+
+
+
+library(limma)
+library(ggplot2)
+library(ggVolcano)
+library(tidyverse)
+
+job <- "test" 
+
+# proteins <- read.csv("path_to_proteins.csv", row.names = 1)
+# group <- read.csv("path_to_group.csv")
+
+proteins <- proteins[which(rowSums(proteins) != 0),]
+
+proteins <- log2(proteins)
+proteins[proteins == -Inf] <- 0
+
+design <- model.matrix(~0 + factor(group$group))
+colnames(design) <- levels(factor(group$group))
+rownames(design) <- colnames(proteins)
+
+contrast.matrix <- makeContrasts(Treat - Con, levels = design)
+
+fit <- lmFit(proteins, design)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+
+DEG <- topTable(fit2, coef = 1, n = Inf, sort.by = "logFC")
+DEG <- na.omit(DEG)
+
+DEG$regulate <- ifelse(DEG$P.Value > 0.05, "unchanged",
+                       ifelse(DEG$logFC > 1, "up-regulated",
+                              ifelse(DEG$logFC < -1, "down-regulated", "unchanged")))
+
+write.csv(DEG, file = "UUO_results.csv", row.names = TRUE)
+
+DEG$row <- rownames(DEG)
+
+ggvolcano(DEG, x = "logFC", y = "adj.P.Val",
+          custom_label = c("Q04447"),
+          pointSize = 2,
+          pointShape = 21,
+          fills = c("#EF767A", "#456990", "#48C0AA"),
+          colors = c("#EF767A", "#456990", "#48C0AA"),
+          add_label = TRUE, label = "row", label_number = 2, output = FALSE) +
+    ggtitle("UUO Injection Induced Kidney Fibrosis") + 
+    theme(plot.title = element_text(hjust = 0.5)) 
+
+library(pheatmap)
+
+DEG_genes <- DEG[DEG$P.Value < 0.05 & abs(DEG$logFC) > 2, ]
+DEG_gene_expr <- proteins[rownames(DEG_genes), ]
+#DEG_gene_expr[is.infinite(DEG_gene_expr)] = 0
+#DEG_gene_expr[DEG_gene_expr == -Inf] = 0
+pdf(paste0(job,"_","pheatmap.pdf"))
+pheatmap(DEG_gene_expr,
+         color = colorRampPalette(c("#EF767A", "#456990", "#48C0AA"))(100), 
+         scale = "row", 
+         border_color = NA, 
+         fontsize = 1, 
+         show_rownames = F)
+
 
