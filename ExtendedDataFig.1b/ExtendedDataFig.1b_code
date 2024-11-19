@@ -1,0 +1,128 @@
+
+# CNV_copy number ---------------------------------------------------------
+
+setwd("/home/data/t050204/ZYS")
+
+
+CNV <- read.delim("HGS_CNV.tsv")
+CNV <- read.delim("STAM_CNV.tsv")
+CNV <- read.delim("STAM2_CNV.tsv")
+
+colnames(CNV)[3:5] <- c("CNV_value","CNV","expression")
+load("tcga_gtex.rda")
+CNV <- merge(CNV,tcga_gtex,by = "sample")
+CNV_res <- CNV %>% plotly::filter(type2 == "tumor") %>%  group_by(tissue,CNV) %>% tally %>% na.omit()
+
+
+
+library(reshape2)
+library(ggsci)
+CNV_res2 <- dcast(CNV_res,tissue ~ CNV) 
+colnames(CNV_res2) <- c("tissue","homozygous deletion","single copy deletion","diploid normal copy",
+                        "low-level amplification","high-level amplification")
+CNV_res2[is.na(CNV_res2)] <- 0
+CNV_res <- melt(CNV_res2,"tissue")
+CNV_res$tissue <- factor(CNV_res$tissue)
+colnames(CNV_res)<- c("tissue","CNV","n")
+CNV_res = CNV_res[order(CNV_res$tissue,CNV_res$CNV),]
+CNV_plot_func <- function(df,show.N=FALSE,bar.width=12){
+  Items <- unique(df$CNV)
+  if (length(unique(df$CNV)) %% 2 ==1){
+    df$negativeScore = df$n * rep(c(rep(1,(length(unique(df$CNV))-1)/2),0.5,
+                                    rep(0,(length(unique(df$CNV))-1)/2)),length(unique(df$tissue)))
+  }else{
+    df$negativeScore = df$n * rep(c(rep(1,(length(unique(df$CNV)))/2),
+                                    rep(0,(length(unique(df$CNV)))/2)),length(unique(df$tissue)))
+  } 
+  
+  df = df %>%
+    group_by(tissue) %>%
+    dplyr::summarise(totalNegativeScore = sum(negativeScore)) %>%
+    merge(df, by = "tissue")
+  df = df[order(df$tissue,df$CNV),]
+  
+  df = df %>%
+    group_by(tissue) %>%
+    dplyr::summarise(Total = sum(n)) %>%
+    merge(df, by = "tissue") %>%
+    mutate(PercentofTotal = n/Total) %>%
+    mutate(LikertPercent = -totalNegativeScore/Total)
+  
+  for (i in 1:nrow(df)) {
+    df$startPercent[i] = ifelse(df$CNV[i]==Items[1],
+                                df$LikertPercent[i],
+                                df$startPercent[i-1]+df$PercentofTotal[i-1])
+  }
+  
+  df = df %>%
+    mutate(endPercent = startPercent + PercentofTotal)
+  info_items <- df[c(1,4,2,7,9,10)]
+  info_items$CNV <- as.character(info_items$CNV) 
+  if (length(Items) %% 2==1){
+    info_items <- info_items[-which(info_items$CNV == Items[ceiling(length(Items)/2)]),]
+    iii <- which(info_items$CNV %in% Items[1:floor(length(Items)/2)])
+    info_items$CNV[iii]<-"Low"
+    
+    iii <- which(info_items$CNV %in% Items[ceiling(length(Items)/2):length(Items)])
+    info_items$CNV[iii]<-"High"
+  }else{
+    iii <- which(info_items$CNV %in% Items[1:(length(Items)/2)])
+    info_items$CNV[iii]<-"Low"
+    
+    iii <- which(info_items$CNV %in% Items[(length(Items)/2+1):length(Items)])
+    info_items$CNV[iii]<-"High"
+    
+  }
+  
+  info_items2 = info_items %>%
+    group_by(tissue,CNV) %>%
+    dplyr::summarise(sum_up = sum(PercentofTotal))%>%
+    merge(info_items, by = "tissue")
+  
+  LikertChart = ggplot() +
+    geom_linerange(data = df, aes(x = tissue, ymin = startPercent,
+                                  ymax = endPercent,color = as.factor(CNV)),size = bar.width,alpha = 0.9)+
+    guides(color = guide_legend(override.aes = list(size = 5),keyheight =1,title = NULL))
+  
+  
+  LikertChart = LikertChart+  
+    geom_hline(aes(yintercept = 0),alpha = 0.5,size = 1)+
+    scale_y_continuous(name = NULL, limits = c(min(df$startPercent)*1.2,
+                                               max(df$endPercent)*1.2),labels = scales::percent)+
+    scale_x_discrete(breaks =df$tissue ,labels= df$tissue)+
+    coord_flip()
+  if (length(unique(df$CNV)) %% 2 ==1){
+    LikertChart =LikertChart+
+      scale_color_manual(values = rev(c(pal_material("red", 
+                                                     alpha = 0.6,
+                                                     n = length(Items) ,
+                                                     reverse = T)(floor(length(Items)/2)),"grey70",
+                                        rev(pal_material("blue", alpha = 0.6,n=4,reverse = T)(floor(length(Items)) /2)))))
+  }else{
+    LikertChart =LikertChart+
+      scale_color_manual(values = rev(c(pal_material("red", alpha = 0.6,
+                                                     n = length(Items),reverse = T)(floor(length(Items)/2)),
+                                        rev(pal_material("blue", alpha = 0.6,n=4,reverse = T)(floor(length(Items)) /2)))))
+  }
+  if (show.N){
+    LikertChart = LikertChart+geom_point(data = df, aes(x = tissue,y=max(df$endPercent)*1.2,size=Total),color="grey80")+
+      scale_size_continuous(range=c(5,13))+
+      geom_text(data = df, aes(x = tissue,y=max(df$endPercent)*1.2,label=Total),color="black")+
+      guides(size=guide_legend(title="Sample size"))
+  }
+  
+  return(LikertChart + theme(axis.text=element_text( color="black",size = 14))+ xlab(""))
+}
+
+p <- CNV_plot_func(CNV_res,bar.width=6,show.N = T)  
+p+theme_bw(base_size = 14)
+p+theme_minimal(base_size = 14)
+p+theme_test(base_size = 14)
+p+theme_classic(base_size = 14)
+
+ggsave(filename = "HGS_CNV.pdf" ,width = 10,height = 11)
+
+ggsave(filename = "STAM_CNV.pdf" ,width = 9,height = 10)
+
+ggsave(filename = "STAM2_CNV.pdf" ,width = 8,height = 10)
+
