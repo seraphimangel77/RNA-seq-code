@@ -1,0 +1,29 @@
+library(corrplot)
+library(ggplot2)
+library(ggpubr)
+
+td <-read.table("zys.txt", header=T)
+class（td）
+gene1 <- td[,"gene1"]
+gene2 <- td[,"gene2"]
+gene3 <- td[,"gene3"]
+cor.test (gene1, gene2, method="pearson")
+cor.test (gene1, gene3, method="pearson")
+ggscatter(td, x = "gene1", y = "gene2", 
+          color = "red3",fill = "lightgray",
+          add = "reg.line", conf.int = TRUE, 
+          add.params = list( color = "black",fill = "lightgray",fill = "lightgray"),
+          cor.coef = T,
+          cor.coeff.args = list(),
+          cor.method = "pearson",
+          cor.coef.coord = c(4, 4),
+          cor.coef.size = 8)
+ggscatter(td, x = "gene1", y = "gene3", 
+          color = "red3",fill = "lightgray",
+          add = "reg.line", conf.int = TRUE, 
+          add.params = list( color = "black",fill = "lightgray",fill = "lightgray"),
+          cor.coef = T,
+          cor.coeff.args = list(),
+          cor.method = "pearson",
+          cor.coef.coord = c(4, 4),
+          cor.coef.size = 8)
