@@ -1,1 +1,24 @@
+library(grid)
+library(forestploter)
+library(foreign)
+library(survival)
+library("survminer")
 
+bc<-read.csv("/home/data/t050204/Data/ZYS/group_cox.tsv",sep='\t',header=TRUE)
+
+bc$Group1<-as.factor(bc$Group1)
+bc$Group2<-as.factor(bc$Group2)
+
+bc$Time<-as.numeric(bc$Time)
+bc$Survival<-as.numeric(bc$Survival)
+
+bc$Age<-as.numeric(bc$Age)
+bc$Sex<-as.factor(bc$Sex)
+bc$Stage<-as.factor(bc$Stage)
+
+f1<- coxph(Surv(Time, Survival) ~ Group2+Age+Sex+Stage, data=bc)
+
+ggforest(f1,data = bc,
+         fontsize = 0,
+         main="")
+ggsave("forest.pdf",width = 7,height = 5,dpi=500)
