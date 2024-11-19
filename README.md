@@ -1,4 +1,4 @@
-# Scripts and files used in "Cancer cells hijack orphan ESCRT subunit to fuel 1 oncogenic growth"
+# Scripts and files used in "Cancer cells hijack orphan ESCRT subunit to fuel oncogenic growth"
 ## Data source
 
 1. RNA-seq data of ExtendedDataFig.7f, have been deposited in the Genome Sequence Archive under the accession number PRJCA020571.
